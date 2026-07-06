@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useAnnotationStore } from "../store/annotationStore";
 import type { RadiologyAnnotation } from "@/shared/lib/types";
 import { getCachedImage } from "../utils/preloader";
+import { toast } from "@/shared/lib/toastStore";
 
 interface ViewportProps {
   seriesName: "Axial" | "Sagittal" | "Coronal";
@@ -19,10 +20,12 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
     contrast,
     hideAnnotations,
     hideReviewAnnotations,
+    hideHoverTooltip,
     crosshair,
     sync3DCrosshair,
     addRadiologyAnnotation,
     deleteRadiologyAnnotation,
+    updateRadiologyAnnotationStatus,
     viewportVisibility,
     toggleViewportVisibility,
     transitionDuration,
@@ -39,6 +42,7 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
   
   // Custom image loading states
   const seriesData = selectedStudy?.series?.find((s) => s.id === seriesId);
@@ -122,7 +126,76 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
   const [boxStart, setBoxStart] = useState({ x: 0, y: 0 });
   const [boxEnd, setBoxEnd] = useState({ x: 0, y: 0 });
   const [polyPoints, setPolyPoints] = useState<{ x: number; y: number }[]>([]);
+  const [polyRedoPoints, setPolyRedoPoints] = useState<{ x: number; y: number }[]>([]);
   const [hoveredAnnoId, setHoveredAnnoId] = useState<number | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isHoveringTooltip, setIsHoveringTooltip] = useState(false);
+
+  // Drag states for floating polygon toolbar panel
+  const [polyPanelPos, setPolyPanelPos] = useState({ x: 20, y: 50 });
+  const [isDraggingPolyPanel, setIsDraggingPolyPanel] = useState(false);
+  const polyPanelDragStart = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Clear hovered annotation if hidden
+  useEffect(() => {
+    if (hideAnnotations && hoveredAnnoId !== null) {
+      setHoveredAnnoId(null);
+    }
+  }, [hideAnnotations, hoveredAnnoId]);
+
+  useEffect(() => {
+    if (hideReviewAnnotations && hoveredAnnoId !== null) {
+      const hoveredAnno = (selectedStudy?.annotations || []).find((a) => a.id === hoveredAnnoId);
+      if (hoveredAnno && hoveredAnno.status !== "pending") {
+        setHoveredAnnoId(null);
+      }
+    }
+  }, [hideReviewAnnotations, hoveredAnnoId, selectedStudy]);
+
+  useEffect(() => {
+    if (hideHoverTooltip && hoveredAnnoId !== null) {
+      setHoveredAnnoId(null);
+    }
+  }, [hideHoverTooltip, hoveredAnnoId]);
+
+  // Clear polygon states when active tool or slice index changes
+  useEffect(() => {
+    setPolyPoints([]);
+    setPolyRedoPoints([]);
+  }, [activeTool, currentSlice]);
+
+  // Handle dragging of the floating polygon panel
+  useEffect(() => {
+    if (!isDraggingPolyPanel) return;
+
+    const handleMouseMoveGlobal = (e: MouseEvent) => {
+      setPolyPanelPos({
+        x: e.clientX - polyPanelDragStart.current.x,
+        y: e.clientY - polyPanelDragStart.current.y,
+      });
+    };
+
+    const handleMouseUpGlobal = () => {
+      setIsDraggingPolyPanel(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMoveGlobal);
+    window.addEventListener("mouseup", handleMouseUpGlobal);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMoveGlobal);
+      window.removeEventListener("mouseup", handleMouseUpGlobal);
+    };
+  }, [isDraggingPolyPanel]);
 
   // Track slice scroll index using key press
   useEffect(() => {
@@ -130,7 +203,10 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
       const activeEl = document.activeElement;
       if (activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA") return;
 
-      if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+      if (e.key === " ") {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
         e.preventDefault();
         changeSlice(-1);
       } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
@@ -138,8 +214,26 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
         changeSlice(1);
       }
     };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === " ") {
+        setIsSpacePressed(false);
+      }
+    };
+
+    const handleBlur = () => {
+      setIsSpacePressed(false);
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
   }, [currentSlice, totalSlices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Slideshow autoplay effect
@@ -428,8 +522,8 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
         ctx.stroke();
       }
 
-      // Draw annotation text label if hovered or selected
-      if (isHovered || isSelected) {
+      // Draw annotation text label if selected (hovered uses HTML overlay now)
+      if (isSelected && !isHovered) {
         const anchor = anno.points[0];
         if (anchor) {
           const px = getPixelCoords(anchor.x, anchor.y, width, height);
@@ -456,7 +550,7 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
 
     // Draw active drawing guides
     if (activeTool === "box" && isDrawingBox) {
-      ctx.strokeStyle = "var(--accent)";
+      ctx.strokeStyle = activeAnnotationColor;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
       
@@ -468,8 +562,8 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
       ctx.stroke();
       ctx.setLineDash([]);
     } else if (activeTool === "polygon" && polyPoints.length > 0) {
-      ctx.strokeStyle = "var(--accent)";
-      ctx.fillStyle = "rgba(16, 185, 129, 0.1)";
+      ctx.strokeStyle = activeAnnotationColor;
+      ctx.fillStyle = `color-mix(in srgb, ${activeAnnotationColor} 15%, transparent)`;
       ctx.lineWidth = 1.5;
 
       ctx.beginPath();
@@ -485,7 +579,7 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
       // Draw vertex circles
       polyPoints.forEach((pt, index) => {
         const px = getPixelCoords(pt.x, pt.y, width, height);
-        ctx.fillStyle = index === 0 ? "#10B981" : "#ffffff";
+        ctx.fillStyle = index === 0 ? activeAnnotationColor : "#ffffff";
         ctx.beginPath();
         ctx.arc(px.x, px.y, 4, 0, Math.PI * 2);
         ctx.fill();
@@ -553,21 +647,30 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Viewport interactions (Zoom & Pan)
-  function handleWheel(e: React.WheelEvent<HTMLCanvasElement>) {
-    e.preventDefault();
-    if (activeTool !== "zoom" && activeTool !== "pan" && !e.ctrlKey) {
-      // Scroll slices using mouse wheel
-      const delta = e.deltaY > 0 ? 1 : -1;
-      changeSlice(delta);
-      return;
-    }
+  // Viewport interactions (Zoom & Pan) using a native passive:false event listener to prevent page scroll
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const zoomFactor = 1.1;
-    const nextScale = e.deltaY < 0 ? scale * zoomFactor : scale / zoomFactor;
-    const boundedScale = Math.max(0.5, Math.min(8, nextScale));
-    setScale(boundedScale);
-  }
+    const handleNativeWheel = (e: WheelEvent) => {
+      // Prevent default page scroll whenever wheeling over the canvas
+      e.preventDefault();
+
+      if (isSpacePressed || activeTool === "zoom" || activeTool === "pan" || e.ctrlKey) {
+        const zoomFactor = 1.1;
+        const isZoomIn = e.deltaY < 0;
+        setScale((prevScale) => {
+          const nextScale = isZoomIn ? prevScale * zoomFactor : prevScale / zoomFactor;
+          return Math.max(0.5, Math.min(8, nextScale));
+        });
+      }
+    };
+
+    canvas.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener("wheel", handleNativeWheel);
+    };
+  }, [isSpacePressed, activeTool]);
 
   function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -578,8 +681,8 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
 
     const norm = getNormalizedCoords(px, py, rect.width, rect.height);
 
-    // Pan Tool or Right click triggers Pan
-    if (activeTool === "pan" || e.button === 2 || e.button === 1) {
+    // Pan Tool, Right/Middle click, or Space key pressed triggers Pan
+    if (activeTool === "pan" || e.button === 2 || e.button === 1 || isSpacePressed) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       return;
@@ -598,6 +701,7 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
           color: activeAnnotationColor,
           points: [norm],
         });
+        toast(`Point "${label.trim()}" added`, "success");
       }
     } else if (activeTool === "box") {
       setIsDrawingBox(true);
@@ -614,6 +718,7 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
         }
       }
       setPolyPoints((prev) => [...prev, norm]);
+      setPolyRedoPoints([]);
     }
   }
 
@@ -642,9 +747,13 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
     }
 
     // Hover collision detection
-    if (selectedStudy) {
+    if (selectedStudy && !hideAnnotations && !hideHoverTooltip) {
       const annotations = (selectedStudy.annotations || []).filter(
-        (anno) => anno.series === seriesId && anno.slice_number === currentSlice
+        (anno) => {
+          if (anno.series !== seriesId || anno.slice_number !== currentSlice) return false;
+          if (hideReviewAnnotations && anno.status !== "pending") return false;
+          return true;
+        }
       );
       
       let foundId: number | null = null;
@@ -675,9 +784,43 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
               break;
             }
           }
+        } else if (anno.annotation_type === "polygon") {
+          const pts = anno.points;
+          if (pts && pts.length >= 3) {
+            let inside = false;
+            for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+              const xi = pts[i].x, yi = pts[i].y;
+              const xj = pts[j].x, yj = pts[j].y;
+
+              const intersect = ((yi > norm.y) !== (yj > norm.y))
+                  && (norm.x < (xj - xi) * (norm.y - yi) / (yj - yi) + xi);
+              if (intersect) inside = !inside;
+            }
+            if (inside) {
+              foundId = anno.id;
+              break;
+            }
+          }
         }
       }
-      setHoveredAnnoId(foundId);
+      if (foundId !== null) {
+        if (hoverTimeoutRef.current) {
+          clearTimeout(hoverTimeoutRef.current);
+          hoverTimeoutRef.current = null;
+        }
+        setHoveredAnnoId(foundId);
+        const canvasRect = canvasRef.current?.getBoundingClientRect();
+        if (canvasRect) {
+          setMousePos({ x: e.clientX - canvasRect.left, y: e.clientY - canvasRect.top });
+        }
+      } else {
+        if (!isHoveringTooltip && !hoverTimeoutRef.current) {
+          hoverTimeoutRef.current = setTimeout(() => {
+            setHoveredAnnoId(null);
+            hoverTimeoutRef.current = null;
+          }, 350); // 350ms delay to allow mouse to move to the tooltip
+        }
+      }
     }
   }
 
@@ -702,6 +845,7 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
             color: activeAnnotationColor,
             points: [boxStart, boxEnd],
           });
+          toast(`Bounding box "${label.trim()}" added`, "success");
         }
       }
     }
@@ -723,6 +867,7 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
         color: activeAnnotationColor,
         points: polyPoints,
       });
+      toast(`Polygon "${label.trim()}" added`, "success");
     }
     setPolyPoints([]);
   }
@@ -850,16 +995,229 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
       </div>
 
       {/* Canvas Area */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden", cursor: activeTool === "pan" ? "move" : "crosshair" }}>
+      <div
+        style={{
+          flex: 1,
+          position: "relative",
+          overflow: "hidden",
+          cursor: isPanning
+            ? "grabbing"
+            : isSpacePressed
+            ? "grab"
+            : activeTool === "pan"
+            ? "move"
+            : "crosshair",
+        }}
+      >
         <canvas
           ref={canvasRef}
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onContextMenu={(e) => e.preventDefault()}
           style={{ width: "100%", height: "100%", display: "block" }}
         />
+
+        {/* Hover action tooltip overlay */}
+        {hoveredAnnoId !== null && (() => {
+          const hoveredAnno = (selectedStudy?.annotations || []).find((a) => a.id === hoveredAnnoId);
+          if (!hoveredAnno) return null;
+          const typeLabel = hoveredAnno.annotation_type === "point"
+            ? "Point"
+            : hoveredAnno.annotation_type === "box"
+            ? "Box"
+            : "Polygon";
+          const statusColor = hoveredAnno.status === "approved"
+            ? "#10b981"
+            : hoveredAnno.status === "rejected"
+            ? "#ef4444"
+            : "#f59e0b";
+          return (
+            <div
+              onMouseEnter={() => {
+                setIsHoveringTooltip(true);
+                if (hoverTimeoutRef.current) {
+                  clearTimeout(hoverTimeoutRef.current);
+                  hoverTimeoutRef.current = null;
+                }
+              }}
+              onMouseLeave={() => {
+                setIsHoveringTooltip(false);
+                if (!hoverTimeoutRef.current) {
+                  hoverTimeoutRef.current = setTimeout(() => {
+                    setHoveredAnnoId(null);
+                    hoverTimeoutRef.current = null;
+                  }, 350);
+                }
+              }}
+              style={{
+                position: "absolute",
+                left: mousePos.x + 16,
+                top: mousePos.y - 10,
+                zIndex: 50,
+                pointerEvents: "auto",
+                animation: "fadeInTooltip 0.15s ease",
+              }}
+            >
+              <div
+                style={{
+                  background: "rgba(15, 15, 20, 0.92)",
+                  backdropFilter: "blur(12px)",
+                  border: `1px solid ${hoveredAnno.color}44`,
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  minWidth: 180,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                }}
+              >
+                {/* Header */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      backgroundColor: hoveredAnno.color,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ color: "#ffffff", fontSize: 12, fontWeight: 600, flex: 1 }}>
+                    {typeLabel}: {hoveredAnno.label}
+                  </span>
+                </div>
+
+                {/* Status badge */}
+                <div style={{ marginBottom: 10 }}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      color: statusColor,
+                      backgroundColor: `${statusColor}18`,
+                      border: `1px solid ${statusColor}40`,
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                    }}
+                  >
+                    {hoveredAnno.status}
+                  </span>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: "flex", gap: 4 }}>
+                  {hoveredAnno.status !== "approved" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateRadiologyAnnotationStatus(hoveredAnno.id, "approved");
+                        toast("Annotation approved", "success");
+                        setHoveredAnnoId(null);
+                        setIsHoveringTooltip(false);
+                        if (hoverTimeoutRef.current) {
+                          clearTimeout(hoverTimeoutRef.current);
+                          hoverTimeoutRef.current = null;
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: "5px 0",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        border: "1px solid #10b98140",
+                        borderRadius: 6,
+                        backgroundColor: "#10b98118",
+                        color: "#10b981",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#10b98130";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#10b98118";
+                      }}
+                    >
+                      ✓ Approve
+                    </button>
+                  )}
+                  {hoveredAnno.status !== "rejected" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateRadiologyAnnotationStatus(hoveredAnno.id, "rejected");
+                        toast("Annotation rejected", "warning");
+                        setHoveredAnnoId(null);
+                        setIsHoveringTooltip(false);
+                        if (hoverTimeoutRef.current) {
+                          clearTimeout(hoverTimeoutRef.current);
+                          hoverTimeoutRef.current = null;
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: "5px 0",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        border: "1px solid #f59e0b40",
+                        borderRadius: 6,
+                        backgroundColor: "#f59e0b18",
+                        color: "#f59e0b",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#f59e0b30";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#f59e0b18";
+                      }}
+                    >
+                      ✕ Reject
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Delete \"${hoveredAnno.label}\"?`)) {
+                        deleteRadiologyAnnotation(hoveredAnno.id);
+                        toast("Annotation deleted", "success");
+                        setHoveredAnnoId(null);
+                        setIsHoveringTooltip(false);
+                        if (hoverTimeoutRef.current) {
+                          clearTimeout(hoverTimeoutRef.current);
+                          hoverTimeoutRef.current = null;
+                        }
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "5px 0",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: "1px solid #ef444440",
+                      borderRadius: 6,
+                      backgroundColor: "#ef444418",
+                      color: "#ef4444",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#ef444430";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "#ef444418";
+                    }}
+                  >
+                    🗑 Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Floating slice indicator */}
         <div
@@ -897,6 +1255,167 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
           >
             Reset View
           </button>
+        )}
+
+        {/* Floating Polygon Tool panel */}
+        {activeTool === "polygon" && polyPoints.length > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              left: polyPanelPos.x,
+              top: polyPanelPos.y,
+              zIndex: 60,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 12px",
+              backgroundColor: "rgba(20, 20, 25, 0.92)",
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              borderRadius: 10,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              color: "#ffffff",
+              fontSize: 12,
+              pointerEvents: "auto",
+            }}
+          >
+            {/* Drag Handle */}
+            <div
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                setIsDraggingPolyPanel(true);
+                polyPanelDragStart.current = {
+                  x: e.clientX - polyPanelPos.x,
+                  y: e.clientY - polyPanelPos.y,
+                };
+              }}
+              style={{
+                cursor: isDraggingPolyPanel ? "grabbing" : "grab",
+                padding: "2px 6px",
+                color: "rgba(255, 255, 255, 0.4)",
+                fontSize: 14,
+                fontWeight: "bold",
+                userSelect: "none",
+                display: "flex",
+                alignItems: "center",
+                marginRight: 2,
+              }}
+            >
+              ⠿
+            </div>
+            <span style={{ fontWeight: 600, color: "rgba(255, 255, 255, 0.7)", marginRight: 4 }}>
+              Polygon ({polyPoints.length} pt{polyPoints.length > 1 ? "s" : ""})
+            </span>
+            <div style={{ height: 16, width: 1, backgroundColor: "rgba(255, 255, 255, 0.15)", margin: "0 4px" }} />
+            
+            {/* Undo */}
+            <button
+              onClick={() => {
+                if (polyPoints.length === 0) return;
+                const last = polyPoints[polyPoints.length - 1];
+                setPolyPoints((prev) => prev.slice(0, -1));
+                setPolyRedoPoints((prev) => [...prev, last]);
+              }}
+              style={{
+                padding: "4px 8px",
+                fontSize: 11,
+                fontWeight: 600,
+                border: "none",
+                borderRadius: 6,
+                backgroundColor: "rgba(255,255,255,0.06)",
+                color: "#ffffff",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)"}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.06)"}
+            >
+              ↩ Undo
+            </button>
+
+            {/* Redo */}
+            <button
+              disabled={polyRedoPoints.length === 0}
+              onClick={() => {
+                if (polyRedoPoints.length === 0) return;
+                const next = polyRedoPoints[polyRedoPoints.length - 1];
+                setPolyRedoPoints((prev) => prev.slice(0, -1));
+                setPolyPoints((prev) => [...prev, next]);
+              }}
+              style={{
+                padding: "4px 8px",
+                fontSize: 11,
+                fontWeight: 600,
+                border: "none",
+                borderRadius: 6,
+                backgroundColor: "rgba(255,255,255,0.06)",
+                color: polyRedoPoints.length === 0 ? "rgba(255,255,255,0.3)" : "#ffffff",
+                cursor: polyRedoPoints.length === 0 ? "default" : "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (polyRedoPoints.length > 0) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";
+              }}
+              onMouseLeave={(e) => {
+                if (polyRedoPoints.length > 0) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.06)";
+              }}
+            >
+              ↪ Redo
+            </button>
+
+            {/* Discard */}
+            <button
+              onClick={() => {
+                if (window.confirm("Discard current polygon draft?")) {
+                  setPolyPoints([]);
+                  setPolyRedoPoints([]);
+                }
+              }}
+              style={{
+                padding: "4px 8px",
+                fontSize: 11,
+                fontWeight: 600,
+                border: "none",
+                borderRadius: 6,
+                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                color: "#ef4444",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.25)"}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.15)"}
+            >
+              🗑 Discard
+            </button>
+
+            {/* Complete */}
+            <button
+              disabled={polyPoints.length < 3}
+              onClick={() => {
+                handleCompletePolygon();
+                setPolyRedoPoints([]);
+              }}
+              style={{
+                padding: "4px 10px",
+                fontSize: 11,
+                fontWeight: 600,
+                border: "none",
+                borderRadius: 6,
+                backgroundColor: polyPoints.length < 3 ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.9)",
+                color: polyPoints.length < 3 ? "rgba(255,255,255,0.4)" : "#ffffff",
+                cursor: polyPoints.length < 3 ? "default" : "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (polyPoints.length >= 3) e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 1)";
+              }}
+              onMouseLeave={(e) => {
+                if (polyPoints.length >= 3) e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.9)";
+              }}
+            >
+              ✓ Complete
+            </button>
+          </div>
         )}
       </div>
 

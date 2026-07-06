@@ -52,6 +52,17 @@ export function Board({ externalOpenModal, onExternalModalHandled }: BoardProps)
     return () => window.removeEventListener("resize", checkWidth);
   }, []);
 
+  React.useEffect(() => {
+    if (activeTask) {
+      document.body.style.cursor = "grabbing";
+    } else {
+      document.body.style.cursor = "";
+    }
+    return () => {
+      document.body.style.cursor = "";
+    };
+  }, [activeTask]);
+
   // Open modal when triggered externally (from page header "New Task" button)
   React.useEffect(() => {
     if (externalOpenModal) {
@@ -193,11 +204,12 @@ export function Board({ externalOpenModal, onExternalModalHandled }: BoardProps)
 
         <DragOverlay>
           {activeTask ? (
-            <div style={{ width: 320, opacity: 0.9 }}>
+            <div style={{ transform: "rotate(2deg)", cursor: "grabbing" }}>
               <TaskCard
                 task={activeTask}
                 onEdit={() => {}}
                 onDelete={() => {}}
+                cursor="grabbing"
               />
             </div>
           ) : null}

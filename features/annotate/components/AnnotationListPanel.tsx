@@ -3,11 +3,13 @@
 import React, { useState, useMemo } from "react";
 import { useAnnotationStore } from "../store/annotationStore";
 import type { RadiologyAnnotation } from "@/shared/lib/types";
+import { toast } from "@/shared/lib/toastStore";
 
 export function AnnotationListPanel() {
   const {
     selectedStudy,
     deleteRadiologyAnnotation,
+    updateRadiologyAnnotationStatus,
     setSliceIndex,
     setCrosshair,
     setSelectedRadiologyAnnotationId,
@@ -24,6 +26,42 @@ export function AnnotationListPanel() {
   const panelHeight = visibleCount === 1 ? 688 : 568;
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Reset selected IDs when status filter or search query changes
+  React.useEffect(() => {
+    setSelectedIds([]);
+  }, [statusFilter, searchQuery]);
+
+  async function handleBulkDelete() {
+    if (selectedIds.length === 0) return;
+    if (window.confirm(`Delete ${selectedIds.length} selected annotations?`)) {
+      const count = selectedIds.length;
+      await Promise.all(selectedIds.map((id) => deleteRadiologyAnnotation(id)));
+      setSelectedIds([]);
+      toast(`${count} annotation${count > 1 ? "s" : ""} deleted`, "success");
+    }
+  }
+
+  async function handleBulkApprove() {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    await Promise.all(
+      selectedIds.map((id) => updateRadiologyAnnotationStatus(id, "approved"))
+    );
+    setSelectedIds([]);
+    toast(`${count} annotation${count > 1 ? "s" : ""} approved`, "success");
+  }
+
+  async function handleBulkReject() {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    await Promise.all(
+      selectedIds.map((id) => updateRadiologyAnnotationStatus(id, "rejected"))
+    );
+    setSelectedIds([]);
+    toast(`${count} annotation${count > 1 ? "s" : ""} rejected`, "warning");
+  }
 
   const seriesNameMap = useMemo(() => {
     const mapping: Record<number, "Axial" | "Sagittal" | "Coronal"> = {};
@@ -82,13 +120,49 @@ export function AnnotationListPanel() {
         padding: 20,
       }}
     >
-      <div>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
-          Findings & Annotations
-        </h3>
-        <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-          List of documented abnormalities and labeled regions of interest.
-        </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+            Findings & Annotations
+          </h3>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            List of documented abnormalities and labeled regions of interest.
+          </p>
+        </div>
+        {filteredAnnotations.length > 0 && (
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+              userSelect: "none",
+              marginTop: 2,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={selectedIds.length > 0 && selectedIds.length === filteredAnnotations.length}
+              ref={(el) => {
+                if (el) {
+                  el.indeterminate = selectedIds.length > 0 && selectedIds.length < filteredAnnotations.length;
+                }
+              }}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedIds(filteredAnnotations.map((anno) => anno.id));
+                } else {
+                  setSelectedIds([]);
+                }
+              }}
+              style={{ accentColor: "var(--accent)", cursor: "pointer" }}
+            />
+            Select All
+          </label>
+        )}
       </div>
 
       {/* Search & Filter */}
@@ -135,6 +209,82 @@ export function AnnotationListPanel() {
         </div>
       </div>
 
+      {/* Bulk Actions Panel */}
+      {selectedIds.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 14px",
+            backgroundColor: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-sm)",
+            gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+            {selectedIds.length} Selected
+          </span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={handleBulkApprove}
+              style={{
+                padding: "5px 10px",
+                fontSize: 11,
+                fontWeight: 600,
+                backgroundColor: "var(--success)",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                transition: "opacity var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              Approve
+            </button>
+            <button
+              onClick={handleBulkReject}
+              style={{
+                padding: "5px 10px",
+                fontSize: 11,
+                fontWeight: 600,
+                backgroundColor: "var(--danger)",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                transition: "opacity var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              Reject
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              style={{
+                padding: "4px 8px",
+                fontSize: 11,
+                fontWeight: 600,
+                backgroundColor: "transparent",
+                color: "var(--danger)",
+                border: "1px solid var(--danger)",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                transition: "background-color var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--danger-subtle)")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Findings List */}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
         {filteredAnnotations.length === 0 ? (
@@ -145,12 +295,16 @@ export function AnnotationListPanel() {
           filteredAnnotations.map((anno) => {
             const seriesName = seriesNameMap[anno.series] || "Axial";
             const isSelected = selectedRadiologyAnnotationId === anno.id;
+            const isSelectedForBulk = selectedIds.includes(anno.id);
+            const isAlwaysVisible = selectedIds.length > 0 || isSelectedForBulk;
+
             return (
               <div
                 key={anno.id}
                 onClick={() => handleFindingClick(anno)}
+                className="finding-item"
                 style={{
-                  padding: 12,
+                  padding: "12px 14px 12px 10px",
                   backgroundColor: "var(--surface-0)",
                   border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
                   outline: isSelected ? "1px solid var(--accent)" : "none",
@@ -158,8 +312,8 @@ export function AnnotationListPanel() {
                   borderRadius: "var(--radius-sm)",
                   cursor: "pointer",
                   display: "flex",
-                  justifyContent: "space-between",
                   alignItems: "center",
+                  gap: 10,
                   transition: "all var(--transition-fast)",
                 }}
                 onMouseEnter={(e) => {
@@ -169,7 +323,36 @@ export function AnnotationListPanel() {
                   if (!isSelected) e.currentTarget.style.borderColor = "var(--border)";
                 }}
               >
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
+                {/* Hover Checkbox */}
+                <div
+                  className={`finding-checkbox-container ${isAlwaysVisible ? "always-visible" : ""}`}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelectedForBulk}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds((prev) => [...prev, anno.id]);
+                      } else {
+                        setSelectedIds((prev) => prev.filter((id) => id !== anno.id));
+                      }
+                    }}
+                    style={{
+                      width: 14,
+                      height: 14,
+                      accentColor: "var(--accent)",
+                      cursor: "pointer",
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ display: "flex", alignItems: "center" }}>
                       {anno.annotation_type === "point" ? (
@@ -187,7 +370,7 @@ export function AnnotationListPanel() {
                         </svg>
                       )}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {anno.label}
                     </span>
                   </div>
@@ -208,6 +391,7 @@ export function AnnotationListPanel() {
                     e.stopPropagation();
                     if (window.confirm("Delete annotation finding?")) {
                       await deleteRadiologyAnnotation(anno.id);
+                      toast("Annotation deleted", "success");
                     }
                   }}
                   title="Delete annotation"
@@ -227,6 +411,23 @@ export function AnnotationListPanel() {
           })
         )}
       </div>
+
+      <style>{`
+        .finding-item {
+          position: relative;
+        }
+        .finding-checkbox-container {
+          opacity: 0;
+          width: 0;
+          overflow: hidden;
+          transition: all 0.2s ease;
+        }
+        .finding-item:hover .finding-checkbox-container,
+        .finding-checkbox-container.always-visible {
+          opacity: 1;
+          width: 20px;
+        }
+      `}</style>
     </div>
   );
 }

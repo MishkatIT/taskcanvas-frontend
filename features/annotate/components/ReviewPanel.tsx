@@ -156,13 +156,13 @@ export function ReviewPanel() {
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: "flex-start",
             backgroundColor: "var(--surface-0)",
             padding: 16,
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-sm)",
             flexWrap: "wrap",
-            gap: 16,
+            gap: 24,
           }}
         >
           {/* Nav buttons */}

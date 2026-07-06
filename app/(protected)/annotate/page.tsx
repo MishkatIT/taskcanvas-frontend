@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAnnotationStore } from "@/features/annotate/store/annotationStore";
 import { StudyDashboard } from "@/features/annotate/components/StudyDashboard";
 import { PACSViewer } from "@/features/annotate/components/PACSViewer";
@@ -16,6 +16,7 @@ import Link from "next/link";
 export default function AnnotatePage() {
   const { selectedStudy, selectStudy, fetchStudies, isLoading } = useAnnotationStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
 
   useEffect(() => {
     document.title = "TaskCanvas Annotate";
@@ -336,20 +337,80 @@ export default function AnnotatePage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr minmax(300px, 340px)",
-              gap: 24,
+              gridTemplateColumns: rightPanelCollapsed ? "1fr" : "1fr minmax(300px, 340px)",
+              gap: rightPanelCollapsed ? 0 : 24,
+              position: "relative",
             }}
             className="pacs-responsive-grid"
           >
             {/* PACS Viewports */}
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, position: "relative" }}>
+              {rightPanelCollapsed && (
+                <button
+                  onClick={() => setRightPanelCollapsed(false)}
+                  title="Expand Right Panel"
+                  style={{
+                    position: "absolute",
+                    right: 4,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    zIndex: 90,
+                    width: 18,
+                    height: 54,
+                    borderRadius: "6px 0 0 6px",
+                    backgroundColor: "rgba(20, 20, 25, 0.92)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid var(--border)",
+                    borderRight: "none",
+                    color: "#ffffff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "-2px 0 12px rgba(0,0,0,0.3)",
+                    fontSize: 9,
+                  }}
+                >
+                  ◀
+                </button>
+              )}
               <PACSViewer onBackToDashboard={() => selectStudy(null)} />
             </div>
 
             {/* Findings list */}
-            <div className="right-panel-wrapper" style={{ minWidth: 0 }}>
-              <AnnotationListPanel />
-            </div>
+            {!rightPanelCollapsed && (
+              <div className="right-panel-wrapper" style={{ minWidth: 0, position: "relative" }}>
+                {/* Collapse Button */}
+                <button
+                  onClick={() => setRightPanelCollapsed(true)}
+                  title="Collapse Right Panel"
+                  style={{
+                    position: "absolute",
+                    left: -12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    zIndex: 90,
+                    width: 18,
+                    height: 54,
+                    borderRadius: "6px 0 0 6px",
+                    backgroundColor: "rgba(20, 20, 25, 0.92)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid var(--border)",
+                    borderRight: "none",
+                    color: "#ffffff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "-2px 0 12px rgba(0,0,0,0.3)",
+                    fontSize: 9,
+                  }}
+                >
+                  ▶
+                </button>
+                <AnnotationListPanel />
+              </div>
+            )}
           </div>
 
           {/* Audit loop review workflow panel */}

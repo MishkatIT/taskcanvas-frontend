@@ -15,6 +15,7 @@ interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
   onDelete: (taskId: number) => void;
+  cursor?: string;
 }
 
 const priorityColors: Record<Task["priority"], string> = {
@@ -39,6 +40,7 @@ export const TaskCard = React.memo(function TaskCard({
   task,
   onEdit,
   onDelete,
+  cursor,
 }: TaskCardProps) {
   const {
     attributes,
@@ -74,6 +76,7 @@ export const TaskCard = React.memo(function TaskCard({
       ref={setNodeRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => setIsExpanded(!isExpanded)}
       style={{
         ...style,
         backgroundColor: "var(--surface-1)",
@@ -81,7 +84,7 @@ export const TaskCard = React.memo(function TaskCard({
         borderRadius: "var(--radius-md)",
         padding: 16,
         boxShadow: isDragging ? "var(--shadow-md)" : "var(--shadow-sm)",
-        cursor: "grab",
+        cursor: cursor || (isDragging ? "grabbing" : "grab"),
         transition: `box-shadow var(--transition-fast), ${transition || ""}`,
         position: "relative",
       }}
@@ -98,7 +101,7 @@ export const TaskCard = React.memo(function TaskCard({
           marginBottom: task.description || task.tags.length > 0 ? 8 : 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
           <div
             title={`Status: ${task.status}`}
             style={{
@@ -110,12 +113,17 @@ export const TaskCard = React.memo(function TaskCard({
             }}
           />
           <h3
+            title={task.title}
             style={{
               fontSize: 14,
               fontWeight: 500,
               color: "var(--text-primary)",
               lineHeight: 1.4,
               flex: 1,
+              overflow: isExpanded ? "visible" : "hidden",
+              textOverflow: isExpanded ? "clip" : "ellipsis",
+              whiteSpace: isExpanded ? "normal" : "nowrap",
+              wordBreak: isExpanded ? "break-word" : "normal",
             }}
           >
             {task.title}
@@ -133,10 +141,13 @@ export const TaskCard = React.memo(function TaskCard({
           }}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          {task.description && (
+          {(task.description || task.title.length > 25) && (
             <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              title={isExpanded ? "Collapse description" : "Expand description"}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
+              title={isExpanded ? "Collapse card" : "Expand card"}
               style={{
                 width: 28,
                 height: 28,
@@ -164,7 +175,10 @@ export const TaskCard = React.memo(function TaskCard({
           )}
 
           <button
-            onClick={handleEdit}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit();
+            }}
             title="Edit task"
             style={{
               width: 28,
@@ -186,7 +200,10 @@ export const TaskCard = React.memo(function TaskCard({
             </svg>
           </button>
           <button
-            onClick={handleDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete();
+            }}
             title="Delete task"
             style={{
               width: 28,

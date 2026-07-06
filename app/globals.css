@@ -195,3 +195,97 @@ button, a, [role="button"] {
     stroke: var(--accent-text) !important;
   }
 }
+
+/* Annotation hover tooltip fade-in */
+@keyframes fadeInTooltip {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ================================================================
+   RESPONSIVE PACS TOOLBAR
+   ================================================================ */
+.pacs-toolbar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 16px;
+  background-color: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.pacs-toolbar-row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.pacs-study-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pacs-tools-section {
+  display: flex;
+  background-color: var(--surface-2);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  gap: 2px;
+}
+
+.pacs-controls-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .pacs-toolbar-row1 {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .pacs-study-section {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .pacs-tools-section {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .pacs-controls-section {
+    justify-content: space-between;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .pacs-tool-btn-text {
+    display: none !important;
+  }
+  
+  .pacs-study-section h2 {
+    font-size: 13px !important;
+  }
+
+  .pacs-study-section button {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+}

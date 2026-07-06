@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from "react";
 import type { Task, TaskInput } from "@/shared/lib/types";
+import { toast } from "@/shared/lib/toastStore";
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -142,7 +143,15 @@ export function TaskModal({
             <input
               id="task-title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.length > 50) {
+                  toast("Task title cannot exceed 50 characters", "warning");
+                  setTitle(val.slice(0, 50));
+                } else {
+                  setTitle(val);
+                }
+              }}
               required
               placeholder="What needs to be done?"
               style={inputStyle}
@@ -154,7 +163,15 @@ export function TaskModal({
             <textarea
               id="task-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.length > 500) {
+                  toast("Task description cannot exceed 500 characters", "warning");
+                  setDescription(val.slice(0, 500));
+                } else {
+                  setDescription(val);
+                }
+              }}
               placeholder="Add more details..."
               rows={3}
               style={{ ...inputStyle, resize: "vertical" }}

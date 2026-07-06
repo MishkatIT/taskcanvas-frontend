@@ -15,6 +15,7 @@ import {
   deleteTaskApi,
   type DateFilter,
 } from "../api";
+import { toast } from "@/shared/lib/toastStore";
 
 /** Notion-style preset names for the date filter. */
 export type FilterPreset = "today" | "yesterday" | "this_week" | "next_week" | "last_week" | "custom" | "all";
@@ -226,9 +227,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (result.ok) {
       // Refetch to get correct ordering
       await get().fetchTasks();
+      toast("Task created", "success");
       return true;
     }
     set({ error: result.error.detail });
+    toast(result.error.detail || "Failed to create task", "error");
     return false;
   },
 
@@ -238,9 +241,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       set((state) => ({
         tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...result.data } : t)),
       }));
+      toast("Task updated", "success");
       return true;
     }
     set({ error: result.error.detail });
+    toast(result.error.detail || "Failed to update task", "error");
     return false;
   },
 
@@ -304,8 +309,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (!result.ok) {
       // Rollback
       set({ tasks: previousTasks, totalCount: previousTotalCount, error: result.error.detail });
+      toast(result.error.detail || "Failed to delete task", "error");
       return false;
     }
+    toast("Task deleted", "success");
     return true;
   },
 }));

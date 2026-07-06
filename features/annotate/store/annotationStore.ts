@@ -50,6 +50,7 @@ interface AnnotationState {
   contrastWindowActive: boolean;
   hideAnnotations: boolean;
   hideReviewAnnotations: boolean;
+  hideHoverTooltip: boolean;
   viewportVisibility: Record<"Axial" | "Sagittal" | "Coronal", boolean>;
   slideshowActive: Record<"Axial" | "Sagittal" | "Coronal", boolean>;
   slideshowSpeed: number;
@@ -87,6 +88,7 @@ interface AnnotationState {
   setContrastWindowActive: (active: boolean) => void;
   setHideAnnotations: (hide: boolean) => void;
   setHideReviewAnnotations: (hide: boolean) => void;
+  setHideHoverTooltip: (hide: boolean) => void;
   setCrosshair: (coords: { x: number; y: number } | null) => void;
   sync3DCrosshair: (sourceSeries: "Axial" | "Sagittal" | "Coronal", coords: { x: number; y: number }) => void;
   addRadiologyAnnotation: (input: Omit<RadiologyAnnotation, "id" | "status" | "created_at">) => Promise<boolean>;
@@ -119,6 +121,7 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   contrastWindowActive: false,
   hideAnnotations: false,
   hideReviewAnnotations: false,
+  hideHoverTooltip: false,
   viewportVisibility: { Axial: true, Sagittal: true, Coronal: true },
   slideshowActive: { Axial: false, Sagittal: false, Coronal: false },
   slideshowSpeed: 200,
@@ -276,9 +279,9 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
       const sagittalInitial = (sagittalSeries?.slices && sagittalSeries.slices.length > 0) ? 1 : 25;
       const coronalInitial = (coronalSeries?.slices && coronalSeries.slices.length > 0) ? 1 : 25;
 
-      const hasAxial = !!(axialSeries?.slices && axialSeries.slices.length > 0);
-      const hasSagittal = !!(sagittalSeries?.slices && sagittalSeries.slices.length > 0);
-      const hasCoronal = !!(coronalSeries?.slices && coronalSeries.slices.length > 0);
+      const hasAxial = !!(axialSeries?.slices && axialSeries.slices.some((s: any) => s.file));
+      const hasSagittal = !!(sagittalSeries?.slices && sagittalSeries.slices.some((s: any) => s.file));
+      const hasCoronal = !!(coronalSeries?.slices && coronalSeries.slices.some((s: any) => s.file));
 
       const hasAnyImages = hasAxial || hasSagittal || hasCoronal;
       const initialVisibility = hasAnyImages
@@ -323,9 +326,9 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
       const sagittalInitial = (sagittalSeries?.slices && sagittalSeries.slices.length > 0) ? 1 : 25;
       const coronalInitial = (coronalSeries?.slices && coronalSeries.slices.length > 0) ? 1 : 25;
 
-      const hasAxial = !!(axialSeries?.slices && axialSeries.slices.length > 0);
-      const hasSagittal = !!(sagittalSeries?.slices && sagittalSeries.slices.length > 0);
-      const hasCoronal = !!(coronalSeries?.slices && coronalSeries.slices.length > 0);
+      const hasAxial = !!(axialSeries?.slices && axialSeries.slices.some((s: any) => s.file));
+      const hasSagittal = !!(sagittalSeries?.slices && sagittalSeries.slices.some((s: any) => s.file));
+      const hasCoronal = !!(coronalSeries?.slices && coronalSeries.slices.some((s: any) => s.file));
 
       const hasAnyImages = hasAxial || hasSagittal || hasCoronal;
       const initialVisibility = hasAnyImages
@@ -416,26 +419,43 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
     set({ hideReviewAnnotations: hide });
   },
 
+  setHideHoverTooltip: (hide) => {
+    set({ hideHoverTooltip: hide });
+  },
+
   setCrosshair: (coords) => {
     set({ crosshair: coords });
   },
 
   sync3DCrosshair: (sourceSeries, coords) => {
-    const { sliceIndices } = get();
-    const xIdx = Math.max(1, Math.min(50, Math.round(coords.x * 49) + 1));
-    const yIdx = Math.max(1, Math.min(50, Math.round(coords.y * 49) + 1));
+    const { selectedStudy } = get();
+    if (!selectedStudy) return;
+
+    const axialSeries = selectedStudy.series?.find((s) => s.name === "Axial");
+    const sagittalSeries = selectedStudy.series?.find((s) => s.name === "Sagittal");
+    const coronalSeries = selectedStudy.series?.find((s) => s.name === "Coronal");
+
+    const axialMax = axialSeries?.slices?.length || 50;
+    const sagittalMax = sagittalSeries?.slices?.length || 50;
+    const coronalMax = coronalSeries?.slices?.length || 50;
 
     set((state) => {
       let nextIndices = { ...state.sliceIndices };
       if (sourceSeries === "Axial") {
-        nextIndices.Sagittal = xIdx;
-        nextIndices.Coronal = yIdx;
+        const sagIdx = Math.max(1, Math.min(sagittalMax, Math.round(coords.x * (sagittalMax - 1)) + 1));
+        const corIdx = Math.max(1, Math.min(coronalMax, Math.round(coords.y * (coronalMax - 1)) + 1));
+        nextIndices.Sagittal = sagIdx;
+        nextIndices.Coronal = corIdx;
       } else if (sourceSeries === "Sagittal") {
-        nextIndices.Coronal = xIdx;
-        nextIndices.Axial = yIdx;
+        const corIdx = Math.max(1, Math.min(coronalMax, Math.round(coords.x * (coronalMax - 1)) + 1));
+        const axIdx = Math.max(1, Math.min(axialMax, Math.round(coords.y * (axialMax - 1)) + 1));
+        nextIndices.Coronal = corIdx;
+        nextIndices.Axial = axIdx;
       } else if (sourceSeries === "Coronal") {
-        nextIndices.Sagittal = xIdx;
-        nextIndices.Axial = yIdx;
+        const sagIdx = Math.max(1, Math.min(sagittalMax, Math.round(coords.x * (sagittalMax - 1)) + 1));
+        const axIdx = Math.max(1, Math.min(axialMax, Math.round(coords.y * (axialMax - 1)) + 1));
+        nextIndices.Sagittal = sagIdx;
+        nextIndices.Axial = axIdx;
       }
       return {
         sliceIndices: nextIndices,
