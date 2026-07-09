@@ -113,6 +113,9 @@ export function RegisterForm() {
           onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
           onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
         />
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.4 }}>
+          Must be at least 8 characters, containing an uppercase, lowercase, number, and special character.
+        </div>
       </div>
 
       {/* Confirm Password */}

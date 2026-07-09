@@ -3,6 +3,7 @@
  */
 
 import { LoginForm } from "@/features/auth/components/LoginForm";
+import Link from "next/link";
 
 export const metadata = {
   title: "TaskCanvas Login",
@@ -21,17 +22,34 @@ export default function LoginPage() {
         padding: 24,
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 440,
-          padding: 40,
-          backgroundColor: "var(--surface-1)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-md)",
-        }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%", maxWidth: 440 }}>
+        <Link
+          href="/"
+          style={{
+            alignSelf: "flex-start",
+            color: "var(--text-secondary)",
+            textDecoration: "none",
+            fontSize: 14,
+            fontWeight: 500,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            transition: "color var(--transition-fast)",
+          }}
+          className="back-home-link"
+        >
+          ← Back to home
+        </Link>
+        <div
+          style={{
+            width: "100%",
+            padding: 40,
+            backgroundColor: "var(--surface-1)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-md)",
+          }}
+        >
         {/* Logo / Branding */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div
@@ -92,6 +110,7 @@ export default function LoginPage() {
             <div>Password: <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>TaskCanvas2026!</span></div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

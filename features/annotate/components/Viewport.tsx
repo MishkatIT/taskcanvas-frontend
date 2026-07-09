@@ -37,6 +37,7 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastSyncTimeRef = useRef<number>(0);
 
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -731,8 +732,12 @@ export function Viewport({ seriesName, seriesId }: ViewportProps) {
 
     const norm = getNormalizedCoords(px, py, rect.width, rect.height);
 
-    // Dynamic coordinates crosshair synchronization
-    sync3DCrosshair(seriesName, norm);
+    // Dynamic coordinates crosshair synchronization (throttled to ~30 FPS to avoid React rendering bottleneck)
+    const now = performance.now();
+    if (now - lastSyncTimeRef.current > 33) {
+      sync3DCrosshair(seriesName, norm);
+      lastSyncTimeRef.current = now;
+    }
 
     if (isPanning) {
       setOffset({

@@ -41,8 +41,6 @@ export default function ProtectedLayout({
     );
   }
 
-
-
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--surface-0)", display: "flex", flexDirection: "column" }}>
       <Header />
