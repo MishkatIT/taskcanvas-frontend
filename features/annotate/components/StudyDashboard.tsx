@@ -11,6 +11,17 @@ interface StudyDashboardProps {
 export function StudyDashboard({ onLoadSession }: StudyDashboardProps) {
   const { studies, createStudy, deleteStudy, isLoading } = useAnnotationStore();
   const [studyName, setStudyName] = useState("");
+  const [searchVal, setSearchVal] = useState("");
+
+  const filteredStudies = React.useMemo(() => {
+    if (!searchVal.trim()) return studies;
+    const query = searchVal.toLowerCase();
+    return studies.filter(
+      (study) =>
+        study.name.toLowerCase().includes(query) ||
+        study.status.toLowerCase().includes(query)
+    );
+  }, [studies, searchVal]);
   
   // Custom uploaded files
   const [axialFiles, setAxialFiles] = useState<File[]>([]);
@@ -357,13 +368,88 @@ export function StudyDashboard({ onLoadSession }: StudyDashboardProps) {
           gap: 20,
         }}
       >
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
-            Previous Annotation Sessions
-          </h2>
-          <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-            Audit findings or check status of previous study runs.
-          </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+              Previous Annotation Sessions
+            </h2>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+              Audit findings or check status of previous study runs.
+            </p>
+          </div>
+
+          {/* Search Input */}
+          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <input
+              type="text"
+              placeholder="Search sessions..."
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+              style={{
+                padding: "8px 12px 8px 36px",
+                fontSize: 13,
+                backgroundColor: "var(--surface-0)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)",
+                outline: "none",
+                width: searchVal ? 220 : 180,
+                transition: "all var(--transition-fast)",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.width = "220px";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "var(--border)";
+                if (!e.currentTarget.value) {
+                  e.currentTarget.style.width = "180px";
+                }
+              }}
+            />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                position: "absolute",
+                left: 12,
+                color: "var(--text-secondary)",
+                opacity: 0.7,
+              }}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            {searchVal && (
+              <button
+                type="button"
+                onClick={() => setSearchVal("")}
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-secondary)",
+                  padding: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", maxHeight: 480 }}>
@@ -371,8 +457,12 @@ export function StudyDashboard({ onLoadSession }: StudyDashboardProps) {
             <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-secondary)", fontSize: 13 }}>
               No ongoing annotation sessions found.
             </div>
+          ) : filteredStudies.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-secondary)", fontSize: 13 }}>
+              No matching sessions found.
+            </div>
           ) : (
-            studies.map((study) => (
+            filteredStudies.map((study) => (
               <div
                 key={study.id}
                 style={{

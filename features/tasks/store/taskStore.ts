@@ -25,6 +25,7 @@ interface TaskState {
   selectedDate: string;
   activeFilter: DateFilter;
   activePreset: FilterPreset;
+  searchQuery: string;
   isLoading: boolean;
   isLoadingMore: Record<Task["status"], boolean>;
   error: string | null;
@@ -118,6 +119,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   selectedDate: getTodayString(),
   activeFilter: { mode: "all" },
   activePreset: "all",
+  searchQuery: "",
   isLoading: false,
   isLoadingMore: { todo: false, in_progress: false, done: false },
   error: null,
@@ -137,13 +139,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   fetchTasks: async () => {
     const filter = get().activeFilter;
+    const search = get().searchQuery;
     set({ isLoading: true, error: null });
 
     // Fetch the first page for each status column concurrently
     const [todoRes, inProgressRes, doneRes] = await Promise.all([
-      fetchTasksApi(filter, 1, "todo"),
-      fetchTasksApi(filter, 1, "in_progress"),
-      fetchTasksApi(filter, 1, "done"),
+      fetchTasksApi(filter, 1, "todo", search),
+      fetchTasksApi(filter, 1, "in_progress", search),
+      fetchTasksApi(filter, 1, "done", search),
     ]);
 
     if (todoRes.ok && inProgressRes.ok && doneRes.ok) {
@@ -266,7 +269,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       );
 
       // Recalculate local status total counts
-      let updatedTotalCount = { ...state.totalCount };
+      const updatedTotalCount = { ...state.totalCount };
       if (oldStatus !== newStatus) {
         updatedTotalCount[oldStatus] = Math.max(0, updatedTotalCount[oldStatus] - 1);
         updatedTotalCount[newStatus] = updatedTotalCount[newStatus] + 1;

@@ -28,12 +28,20 @@ function buildBaseUrl(filter: DateFilter): string {
   }
 }
 
-export async function fetchTasksApi(filter: DateFilter, page: number = 1, status?: string): Promise<ApiResult<TaskListResponse>> {
+export async function fetchTasksApi(
+  filter: DateFilter,
+  page: number = 1,
+  status?: string,
+  search?: string
+): Promise<ApiResult<TaskListResponse>> {
   const base = buildBaseUrl(filter);
   const separator = base.includes("?") ? "&" : "?";
   let url = `${base}${separator}page=${page}`;
   if (status) {
     url += `&status=${status}`;
+  }
+  if (search) {
+    url += `&search=${encodeURIComponent(search)}`;
   }
   return api.get<TaskListResponse>(url);
 }
@@ -41,9 +49,13 @@ export async function fetchTasksApi(filter: DateFilter, page: number = 1, status
 export async function fetchTasksByUrlApi(url: string): Promise<ApiResult<TaskListResponse>> {
   // For "Load More" — uses the `next` URL directly from the paginated response
   // Strip the API base from the URL if present (DRF returns absolute URLs)
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const relativeUrl = url.startsWith(apiBase) ? url.slice(apiBase.length) : url;
-  return api.get<TaskListResponse>(relativeUrl);
+  try {
+    const parsed = new URL(url);
+    const relativeUrl = parsed.pathname + parsed.search;
+    return api.get<TaskListResponse>(relativeUrl);
+  } catch {
+    return api.get<TaskListResponse>(url);
+  }
 }
 
 export async function createTaskApi(input: TaskInput): Promise<ApiResult<Task>> {

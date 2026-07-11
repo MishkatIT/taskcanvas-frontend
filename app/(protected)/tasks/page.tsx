@@ -16,6 +16,20 @@ export default function TasksPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [triggerNewTask, setTriggerNewTask] = useState(false);
   const handleModalHandled = useCallback(() => setTriggerNewTask(false), []);
+  const [searchVal, setSearchVal] = useState("");
+
+  // Handle search query updates with debounce
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      const currentQuery = useTaskStore.getState().searchQuery;
+      if (currentQuery !== searchVal) {
+        useTaskStore.setState({ searchQuery: searchVal });
+        fetchTasks();
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchVal, fetchTasks]);
 
   useEffect(() => {
     document.title = "TaskCanvas Tasks";
@@ -279,6 +293,79 @@ export default function TasksPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {/* Search Input */}
+          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+              style={{
+                padding: "8px 12px 8px 36px",
+                fontSize: 13,
+                backgroundColor: "var(--surface-1)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)",
+                outline: "none",
+                width: searchVal ? 240 : 200,
+                transition: "all var(--transition-fast)",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.width = "240px";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "var(--border)";
+                if (!e.currentTarget.value) {
+                  e.currentTarget.style.width = "200px";
+                }
+              }}
+            />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                position: "absolute",
+                left: 12,
+                color: "var(--text-secondary)",
+                opacity: 0.7,
+              }}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            {searchVal && (
+              <button
+                type="button"
+                onClick={() => setSearchVal("")}
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-secondary)",
+                  padding: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
+
           <DateSelector
             value={selectedDate}
             activePreset={activePreset}
