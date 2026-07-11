@@ -18,7 +18,7 @@ import {
 import { toast } from "@/shared/lib/toastStore";
 
 /** Notion-style preset names for the date filter. */
-export type FilterPreset = "today" | "yesterday" | "this_week" | "next_week" | "last_week" | "custom" | "all";
+export type FilterPreset = "today" | "yesterday" | "this_week" | "next_week" | "last_week" | "custom" | "all" | "from_today";
 
 interface TaskState {
   tasks: Task[];
@@ -26,6 +26,7 @@ interface TaskState {
   activeFilter: DateFilter;
   activePreset: FilterPreset;
   searchQuery: string;
+  showOverdueOnly: boolean;
   isLoading: boolean;
   isLoadingMore: Record<Task["status"], boolean>;
   error: string | null;
@@ -40,6 +41,7 @@ interface TaskState {
   editTask: (id: number, input: Partial<TaskInput>) => Promise<boolean>;
   moveTask: (id: number, input: TaskMoveInput) => Promise<boolean>;
   removeTask: (id: number) => Promise<boolean>;
+  setShowOverdueOnly: (val: boolean) => void;
 }
 
 function toLocalDateString(d: Date): string {
@@ -104,6 +106,9 @@ function buildFilter(preset: FilterPreset, customDate?: string): { filter: DateF
       return { filter: { mode: "range", from: toLocalDateString(mon), to: toLocalDateString(sun) }, displayDate: toLocalDateString(sun) };
     }
 
+    case "from_today":
+      return { filter: { mode: "from", from: toLocalDateString(today) }, displayDate: toLocalDateString(today) };
+
     case "all":
       return { filter: { mode: "all" }, displayDate: toLocalDateString(today) };
 
@@ -114,12 +119,35 @@ function buildFilter(preset: FilterPreset, customDate?: string): { filter: DateF
   }
 }
 
+function getSavedPreset(): FilterPreset {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("selected_date_preset");
+    if (saved) return saved as FilterPreset;
+  }
+  return "all";
+}
+
+function getSavedDate(): string {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("selected_date");
+    if (saved) return saved;
+  }
+  return getTodayString();
+}
+
+const initialPreset = getSavedPreset();
+const { filter: initialFilter, displayDate: initialDate } = buildFilter(
+  initialPreset,
+  initialPreset === "custom" ? getSavedDate() : undefined
+);
+
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
-  selectedDate: getTodayString(),
-  activeFilter: { mode: "all" },
-  activePreset: "all",
+  selectedDate: initialDate,
+  activeFilter: initialFilter,
+  activePreset: initialPreset,
   searchQuery: "",
+  showOverdueOnly: false,
   isLoading: false,
   isLoadingMore: { todo: false, in_progress: false, done: false },
   error: null,
@@ -127,12 +155,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   nextPageUrl: { todo: null, in_progress: null, done: null },
 
   setSelectedDate: (date: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("selected_date_preset", "custom");
+      localStorage.setItem("selected_date", date);
+    }
     set({ selectedDate: date, activeFilter: { mode: "single", date }, activePreset: "custom" });
     get().fetchTasks();
   },
 
   setFilter: (preset: FilterPreset, customDate?: string) => {
     const { filter, displayDate } = buildFilter(preset, customDate);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("selected_date_preset", preset);
+      localStorage.setItem("selected_date", displayDate);
+    }
     set({ activePreset: preset, activeFilter: filter, selectedDate: displayDate });
     get().fetchTasks();
   },
@@ -318,4 +354,5 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     toast("Task deleted", "success");
     return true;
   },
+  setShowOverdueOnly: (val: boolean) => set({ showOverdueOnly: val }),
 }));

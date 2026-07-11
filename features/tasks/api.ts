@@ -15,6 +15,7 @@ export interface TaskListResponse {
 export type DateFilter =
   | { mode: "single"; date: string }
   | { mode: "range"; from: string; to: string }
+  | { mode: "from"; from: string }
   | { mode: "all" };
 
 function buildBaseUrl(filter: DateFilter): string {
@@ -23,6 +24,8 @@ function buildBaseUrl(filter: DateFilter): string {
       return `/api/tasks/?due_date=${filter.date}`;
     case "range":
       return `/api/tasks/?due_date_from=${filter.from}&due_date_to=${filter.to}`;
+    case "from":
+      return `/api/tasks/?due_date_from=${filter.from}`;
     case "all":
       return `/api/tasks/?all=true`;
   }

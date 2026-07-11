@@ -25,6 +25,7 @@ function toLocalDateString(d: Date): string {
 
 const PRESETS: { id: FilterPreset; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "from_today", label: "From Today" },
   { id: "today", label: "Today" },
   { id: "yesterday", label: "Yesterday" },
   { id: "this_week", label: "This Week" },
@@ -89,7 +90,7 @@ export const DateSelector = React.memo(function DateSelector({
     flexShrink: 0,
   };
 
-  const isRangeMode = ["all", "this_week", "next_week", "last_week"].includes(activePreset);
+  const isRangeMode = ["all", "from_today", "this_week", "next_week", "last_week"].includes(activePreset);
 
   return (
     <div data-tour="date-selector" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>

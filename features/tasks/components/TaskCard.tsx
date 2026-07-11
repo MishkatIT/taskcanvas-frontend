@@ -36,6 +36,53 @@ const statusPinColors: Record<Task["status"], string> = {
   done: "var(--success)",
 };
 
+function formatRelativeDate(dueDateStr: string): string {
+  const today = new Date();
+  
+  const toDateString = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const todayStr = toDateString(today);
+
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowStr = toDateString(tomorrow);
+
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayStr = toDateString(yesterday);
+
+  if (dueDateStr === todayStr) {
+    return "Today";
+  }
+  if (dueDateStr === tomorrowStr) {
+    return "Tomorrow";
+  }
+  if (dueDateStr === yesterdayStr) {
+    return "Yesterday";
+  }
+
+  return new Date(dueDateStr + "T00:00:00").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function isOverdue(dueDateStr: string, status: string): boolean {
+  if (status === "done") return false;
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+  return dueDateStr < todayStr;
+}
+
 export const TaskCard = React.memo(function TaskCard({
   task,
   onEdit,
@@ -79,8 +126,8 @@ export const TaskCard = React.memo(function TaskCard({
       onClick={() => setIsExpanded(!isExpanded)}
       style={{
         ...style,
-        backgroundColor: "var(--surface-1)",
-        border: "1px solid var(--border)",
+        backgroundColor: `color-mix(in srgb, ${priorityColors[task.priority]} 3%, var(--surface-1))`,
+        border: `1.5px solid color-mix(in srgb, ${priorityColors[task.priority]} 25%, var(--border))`,
         borderRadius: "var(--radius-md)",
         padding: 16,
         boxShadow: isDragging ? "var(--shadow-md)" : "var(--shadow-sm)",
@@ -260,6 +307,47 @@ export const TaskCard = React.memo(function TaskCard({
         >
           {priorityLabels[task.priority]}
         </span>
+
+        {task.due_date && (
+          (() => {
+            const overdue = isOverdue(task.due_date, task.status);
+            return (
+              <span
+                title={overdue ? "Overdue task!" : "Due date"}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  backgroundColor: overdue ? "var(--danger-subtle)" : "var(--surface-2)",
+                  color: overdue ? "var(--danger)" : "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                {overdue ? (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                )}
+                <span>
+                  {formatRelativeDate(task.due_date)}
+                  {overdue && " (Overdue)"}
+                </span>
+              </span>
+            );
+          })()
+        )}
 
         {task.tags.map((tag) => (
           <span

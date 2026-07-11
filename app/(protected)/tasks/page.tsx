@@ -12,11 +12,12 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 import Link from "next/link";
 
 export default function TasksPage() {
-  const { selectedDate, setSelectedDate, setFilter, activePreset, fetchTasks, isLoading } = useTaskStore();
+  const { selectedDate, setSelectedDate, setFilter, activePreset, fetchTasks, isLoading, showOverdueOnly, setShowOverdueOnly, tasks } = useTaskStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [triggerNewTask, setTriggerNewTask] = useState(false);
   const handleModalHandled = useCallback(() => setTriggerNewTask(false), []);
   const [searchVal, setSearchVal] = useState("");
+  const [showInsights, setShowInsights] = useState(false);
 
   // Handle search query updates with debounce
   useEffect(() => {
@@ -366,6 +367,62 @@ export default function TasksPage() {
             )}
           </div>
 
+          {/* Overdue Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowOverdueOnly(!showOverdueOnly)}
+            title="Toggle Overdue Filter"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              backgroundColor: showOverdueOnly ? "var(--danger-subtle)" : "var(--surface-1)",
+              color: showOverdueOnly ? "var(--danger)" : "var(--text-secondary)",
+              border: `1px solid ${showOverdueOnly ? "var(--danger)" : "var(--border)"}`,
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              transition: "all var(--transition-fast)",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>Overdue Only</span>
+          </button>
+
+          {/* Insights Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setShowInsights(!showInsights)}
+            title="Toggle Analytics Insights"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              backgroundColor: showInsights ? "var(--accent-subtle)" : "var(--surface-1)",
+              color: showInsights ? "var(--accent)" : "var(--text-secondary)",
+              border: `1px solid ${showInsights ? "var(--accent)" : "var(--border)"}`,
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              transition: "all var(--transition-fast)",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            <span>Insights</span>
+          </button>
+
           <DateSelector
             value={selectedDate}
             activePreset={activePreset}
@@ -399,6 +456,164 @@ export default function TasksPage() {
             New Task
           </button>
         </div>
+      </div>
+
+      {/* Insights Panel */}
+      <div
+        style={{
+          maxHeight: showInsights ? "600px" : "0px",
+          opacity: showInsights ? 1 : 0,
+          overflow: "hidden",
+          transition: "all var(--transition-normal)",
+          marginBottom: showInsights ? 24 : 0,
+          backgroundColor: "var(--surface-1)",
+          border: showInsights ? "1px solid var(--border)" : "1px solid transparent",
+          borderRadius: "var(--radius-md)",
+          padding: showInsights ? 20 : 0,
+          boxShadow: "var(--shadow-sm)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            Board Analytics & Insights
+          </h3>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            Calculated from {tasks.length} loaded tasks
+          </span>
+        </div>
+
+        {tasks.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: 13 }}>
+            No tasks loaded. Add some tasks to view dashboard analytics!
+          </div>
+        ) : (
+          (() => {
+            const total = tasks.length;
+            const completed = tasks.filter((t) => t.status === "done").length;
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            const highCount = tasks.filter((t) => t.priority === "high").length;
+            const medCount = tasks.filter((t) => t.priority === "medium").length;
+            const lowCount = tasks.filter((t) => t.priority === "low").length;
+
+            // Compute tags counts
+            const tagsMap: Record<string, number> = {};
+            tasks.forEach((t) => {
+              t.tags.forEach((tag) => {
+                tagsMap[tag] = (tagsMap[tag] || 0) + 1;
+              });
+            });
+            const topTags = Object.entries(tagsMap)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10);
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+                {/* Column 1: Completion Rate Circle */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 12, backgroundColor: "var(--surface-0)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Completion Rate</span>
+                  <div style={{ position: "relative", width: 90, height: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="90" height="90" viewBox="0 0 36 36" style={{ transform: "rotate(-90deg)" }}>
+                      {/* Background circle */}
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--surface-2)" strokeWidth="3" />
+                      {/* Foreground indicator */}
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="15.915"
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeWidth="3.2"
+                        strokeDasharray={`${percent} ${100 - percent}`}
+                        style={{ transition: "stroke-dasharray 0.5s ease" }}
+                      />
+                    </svg>
+                    <div style={{ position: "absolute", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{percent}%</span>
+                      <span style={{ fontSize: 9, color: "var(--text-secondary)" }}>{completed} / {total} done</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Column 2: Priority Breakdown */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16, backgroundColor: "var(--surface-0)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Priority Distribution</span>
+                  {/* High Priority Bar */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600 }}>
+                      <span style={{ color: "var(--priority-high)" }}>High</span>
+                      <span style={{ color: "var(--text-primary)" }}>{highCount} ({total > 0 ? Math.round((highCount / total) * 100) : 0}%)</span>
+                    </div>
+                    <div style={{ height: 6, backgroundColor: "var(--surface-2)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ width: `${total > 0 ? (highCount / total) * 100 : 0}%`, height: "100%", backgroundColor: "var(--priority-high)", borderRadius: 3, transition: "width 0.4s ease" }} />
+                    </div>
+                  </div>
+                  {/* Medium Priority Bar */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600 }}>
+                      <span style={{ color: "var(--priority-medium)" }}>Medium</span>
+                      <span style={{ color: "var(--text-primary)" }}>{medCount} ({total > 0 ? Math.round((medCount / total) * 100) : 0}%)</span>
+                    </div>
+                    <div style={{ height: 6, backgroundColor: "var(--surface-2)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ width: `${total > 0 ? (medCount / total) * 100 : 0}%`, height: "100%", backgroundColor: "var(--priority-medium)", borderRadius: 3, transition: "width 0.4s ease" }} />
+                    </div>
+                  </div>
+                  {/* Low Priority Bar */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600 }}>
+                      <span style={{ color: "var(--priority-low)" }}>Low</span>
+                      <span style={{ color: "var(--text-primary)" }}>{lowCount} ({total > 0 ? Math.round((lowCount / total) * 100) : 0}%)</span>
+                    </div>
+                    <div style={{ height: 6, backgroundColor: "var(--surface-2)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ width: `${total > 0 ? (lowCount / total) * 100 : 0}%`, height: "100%", backgroundColor: "var(--priority-low)", borderRadius: 3, transition: "width 0.4s ease" }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Column 3: Top Tags Cloud */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16, backgroundColor: "var(--surface-0)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Top Tags</span>
+                  {topTags.length === 0 ? (
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", textAlign: "center", padding: "10px 0" }}>
+                      No tags found on loaded tasks.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {topTags.map(([tag, count]) => (
+                        <div
+                          key={tag}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 500,
+                            padding: "3px 8px",
+                            backgroundColor: "var(--surface-2)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 12,
+                            color: "var(--text-secondary)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <span>{tag}</span>
+                          <span style={{ fontWeight: 600, color: "var(--accent)" }}>{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()
+        )}
       </div>
 
       {/* Loading state */}

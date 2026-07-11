@@ -6,7 +6,7 @@
 
 "use client";
 
-import React, { useMemo, useCallback, useRef, useEffect } from "react";
+import React, { useMemo, useCallback, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -31,14 +31,22 @@ const statusColors: Record<Task["status"], string> = {
 };
 
 export function Column({ status, title, tasks, onEdit, onDelete }: ColumnProps) {
-  const { loadMore, nextPageUrl, isLoadingMore, totalCount } = useTaskStore();
+  const { loadMore, nextPageUrl, isLoadingMore, totalCount, showOverdueOnly } = useTaskStore();
   const hasMore = nextPageUrl[status];
   const loadingThisColumn = isLoadingMore[status];
 
-  const filteredTasks = useMemo(
-    () => tasks.filter((t) => t.status === status).sort((a, b) => a.order - b.order),
-    [tasks, status]
-  );
+  const filteredTasks = useMemo(() => {
+    let result = tasks.filter((t) => t.status === status);
+    if (showOverdueOnly) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      result = result.filter((t) => t.due_date < todayStr && t.status !== "done");
+    }
+    return result.sort((a, b) => a.order - b.order);
+  }, [tasks, status, showOverdueOnly]);
 
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -119,7 +127,7 @@ export function Column({ status, title, tasks, onEdit, onDelete }: ColumnProps) 
             borderRadius: 10,
           }}
         >
-          {filteredTasks.length} / {totalCount[status]}
+          {filteredTasks.length} / {showOverdueOnly ? filteredTasks.length : totalCount[status]}
         </span>
       </div>
 
