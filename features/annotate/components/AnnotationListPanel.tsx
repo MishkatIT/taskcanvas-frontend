@@ -109,6 +109,7 @@ export function AnnotationListPanel() {
 
   return (
     <div
+      data-tour="annotation-list"
       className="right-panel-container"
       style={{
         display: "flex",

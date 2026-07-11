@@ -239,6 +239,7 @@ export function StudyDashboard({ onLoadSession }: StudyDashboardProps) {
 
   return (
     <div
+      data-tour="study-dashboard"
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",

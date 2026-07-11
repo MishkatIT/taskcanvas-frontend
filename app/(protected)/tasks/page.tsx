@@ -287,6 +287,7 @@ export default function TasksPage() {
           />
 
           <button
+            data-tour="new-task-btn"
             onClick={() => setTriggerNewTask(true)}
             style={{
               display: "flex",
@@ -369,7 +370,9 @@ export default function TasksPage() {
           ))}
         </div>
       ) : (
-        <Board externalOpenModal={triggerNewTask} onExternalModalHandled={handleModalHandled} />
+        <div data-tour="kanban-board" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <Board externalOpenModal={triggerNewTask} onExternalModalHandled={handleModalHandled} />
+        </div>
       )}
     </div>
   );

@@ -12,11 +12,13 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "../store/authStore";
 import { logoutApi } from "../api";
 import { SettingsModal } from "./SettingsModal";
+import { useTourStore } from "@/shared/lib/tourStore";
 
 export function Header() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const isTourActive = useTourStore((s) => s.isActive);
   
   const router = useRouter();
   const pathname = usePathname();
@@ -158,35 +160,66 @@ export function Header() {
           </Link>
 
           {!isMobile && (
-            <nav style={{ display: "flex", gap: 4 }}>
-              {navItems.map((item) => {
-                const isActive = pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    style={{
-                      padding: "6px 16px",
-                      borderRadius: "var(--radius-sm)",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      textDecoration: "none",
-                      color: isActive ? "var(--accent)" : "var(--text-secondary)",
-                      backgroundColor: isActive ? "var(--accent-subtle)" : "transparent",
-                      transition: "all var(--transition-fast)",
-                    }}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
+            <div data-tour="nav-links" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <nav style={{ display: "flex", gap: 4 }}>
+                {navItems.map((item) => {
+                  const isActive = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      style={{
+                        padding: "6px 16px",
+                        borderRadius: "var(--radius-sm)",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        textDecoration: "none",
+                        color: isActive ? "var(--accent)" : "var(--text-secondary)",
+                        backgroundColor: isActive ? "var(--accent-subtle)" : "transparent",
+                        transition: "all var(--transition-fast)",
+                      }}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+              {isAuthenticated && (
+                <button
+                  onClick={() => useTourStore.getState().startTour()}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    backgroundColor: isTourActive ? "var(--accent-subtle)" : "transparent",
+                    color: isTourActive ? "var(--accent)" : "var(--text-secondary)",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    transition: "all var(--transition-fast)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = isTourActive ? "var(--accent)" : "var(--surface-2)";
+                    e.currentTarget.style.color = isTourActive ? "var(--accent-text)" : "var(--text-primary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = isTourActive ? "var(--accent-subtle)" : "transparent";
+                    e.currentTarget.style.color = isTourActive ? "var(--accent)" : "var(--text-secondary)";
+                  }}
+                >
+                  Tour
+                </button>
+              )}
+            </div>
           )}
         </div>
 
         {/* Right Controls */}
         {isMobile ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div data-tour="auth-controls" style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {/* Theme Toggle Button - only show when signed out */}
             {!isAuthenticated && (
               <button
@@ -264,7 +297,7 @@ export function Header() {
             </button>
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div data-tour="auth-controls" style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {/* Theme Toggle Button - only show when signed out */}
             {!isAuthenticated && (
               <button
@@ -524,6 +557,31 @@ export function Header() {
                 </Link>
               );
             })}
+            {isAuthenticated && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  useTourStore.getState().startTour();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  backgroundColor: isTourActive ? "var(--accent-subtle)" : "transparent",
+                  color: isTourActive ? "var(--accent)" : "var(--text-secondary)",
+                  border: "none",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  width: "100%",
+                }}
+              >
+                Quick Tour Guide
+              </button>
+            )}
           </nav>
 
           {isAuthenticated ? (

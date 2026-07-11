@@ -69,6 +69,7 @@ export function ReviewPanel() {
 
   return (
     <div
+      data-tour="review-panel"
       style={{
         backgroundColor: "var(--surface-1)",
         border: "1px solid var(--border)",

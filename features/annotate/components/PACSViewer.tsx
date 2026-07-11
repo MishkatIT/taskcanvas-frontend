@@ -3,6 +3,7 @@
 import React from "react";
 import { useAnnotationStore } from "../store/annotationStore";
 import { Viewport } from "./Viewport";
+import { useTourStore } from "@/shared/lib/tourStore";
 
 interface PACSViewerProps {
   onBackToDashboard: () => void;
@@ -37,6 +38,15 @@ export function PACSViewer({ onBackToDashboard }: PACSViewerProps) {
 
   const [settingsExpanded, setSettingsExpanded] = React.useState(false);
   const [showShortcuts, setShowShortcuts] = React.useState(false);
+
+  const isTourActive = useTourStore((s) => s.isActive);
+  const currentStep = useTourStore((s) => s.currentStep);
+
+  React.useEffect(() => {
+    if (isTourActive && (currentStep >= 7 && currentStep <= 10)) {
+      setSettingsExpanded(true);
+    }
+  }, [isTourActive, currentStep]);
 
   if (!selectedStudy) return null;
 
@@ -145,7 +155,7 @@ export function PACSViewer({ onBackToDashboard }: PACSViewerProps) {
           </div>
 
           {/* Center: Tools Segmented Control */}
-          <div className="pacs-tools-section">
+          <div data-tour="active-tool-selector" className="pacs-tools-section">
             {tools.map((tool) => {
               const isActive = activeTool === tool.id;
               return (
@@ -245,6 +255,7 @@ export function PACSViewer({ onBackToDashboard }: PACSViewerProps) {
 
             {/* Adjustments Panel Toggle */}
             <button
+              data-tour="adjustments-btn"
               onClick={() => setSettingsExpanded(!settingsExpanded)}
               title={settingsExpanded ? "Hide Adjustments" : "Show Adjustments"}
               style={{
@@ -279,6 +290,7 @@ export function PACSViewer({ onBackToDashboard }: PACSViewerProps) {
               onMouseLeave={() => setShowShortcuts(false)}
             >
               <button
+                data-tour="shortcuts-info"
                 type="button"
                 style={{
                   display: "flex",
@@ -353,7 +365,7 @@ export function PACSViewer({ onBackToDashboard }: PACSViewerProps) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20, alignItems: "start" }}>
               
               {/* Block A: Image Adjustments */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div data-tour="image-adjustments-block" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Image adjustments</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-primary)", fontWeight: 500, cursor: "pointer" }}>
@@ -393,7 +405,7 @@ export function PACSViewer({ onBackToDashboard }: PACSViewerProps) {
               </div>
 
               {/* Block B: Slideshow Speed & Transition */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div data-tour="slideshow-controls-block" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Slideshow controls</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -429,7 +441,7 @@ export function PACSViewer({ onBackToDashboard }: PACSViewerProps) {
               </div>
 
               {/* Block C: Filters & Viewports visibility */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div data-tour="visibility-options-block" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Visibility options</span>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {/* Checkboxes */}
@@ -502,6 +514,7 @@ export function PACSViewer({ onBackToDashboard }: PACSViewerProps) {
 
       {/* Grid of Viewports */}
       <div
+        data-tour="pacs-viewport"
         style={{
           display: "grid",
           gridTemplateColumns:

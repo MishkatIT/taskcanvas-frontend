@@ -92,7 +92,7 @@ export const DateSelector = React.memo(function DateSelector({
   const isRangeMode = ["all", "this_week", "next_week", "last_week"].includes(activePreset);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+    <div data-tour="date-selector" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
       {/* Day navigation arrows (only for single-day modes) */}
       {!isRangeMode && (
         <button type="button" onClick={() => shiftDate(-1)} title="Previous day" style={arrowBtnStyle}>
