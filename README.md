@@ -3,11 +3,11 @@
 ## Submission Links
 - Frontend repo: https://github.com/MishkatIT/taskcanvas-frontend
 - Backend repo: https://github.com/MishkatIT/taskcanvas-backend
-- Live app: https://taskcanvas-frontend.vercel.app
+- Live app: https://taskcanvas-frontend-nu.vercel.app
 - Live API: https://taskcanvas-backend.pythonanywhere.com
 - Demo email: demo@taskcanvas.com
 - Demo password: TaskCanvas2026!
-- Demo video: <link>
+- Demo video: https://drive.google.com/file/d/1llKb8YxVg1tscmstA8S9TX_BqZnu3-LC/view
 
 ## Tech Stack
 Next.js (App Router), TypeScript, Tailwind CSS, Zustand, @dnd-kit, react-konva
