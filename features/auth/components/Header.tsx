@@ -16,6 +16,7 @@ import { useTourStore } from "@/shared/lib/tourStore";
 
 export function Header() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const isTourActive = useTourStore((s) => s.isActive);
@@ -221,7 +222,7 @@ export function Header() {
         {isMobile ? (
           <div data-tour="auth-controls" style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {/* Theme Toggle Button - only show when signed out */}
-            {!isAuthenticated && (
+            {!isLoading && !isAuthenticated && (
               <button
                 onClick={toggleTheme}
                 title={`Toggle Theme (current: ${theme})`}
@@ -299,7 +300,7 @@ export function Header() {
         ) : (
           <div data-tour="auth-controls" style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {/* Theme Toggle Button - only show when signed out */}
-            {!isAuthenticated && (
+            {!isLoading && !isAuthenticated && (
               <button
                 onClick={toggleTheme}
                 title={`Toggle Theme (current: ${theme})`}
@@ -343,7 +344,17 @@ export function Header() {
               </button>
             )}
 
-            {isAuthenticated ? (
+            {isLoading ? (
+              <div
+                style={{
+                  width: 80,
+                  height: 36,
+                  backgroundColor: "var(--surface-2)",
+                  borderRadius: "var(--radius-sm)",
+                  animation: "headerPulse 1.5s infinite ease-in-out",
+                }}
+              />
+            ) : isAuthenticated ? (
               <div style={{ position: "relative" }}>
                 <button
                   onClick={(e) => {
@@ -584,7 +595,16 @@ export function Header() {
             )}
           </nav>
 
-          {isAuthenticated ? (
+          {isLoading ? (
+            <div
+              style={{
+                height: 48,
+                backgroundColor: "var(--surface-2)",
+                borderRadius: "var(--radius-sm)",
+                animation: "headerPulse 1.5s infinite ease-in-out",
+              }}
+            />
+          ) : isAuthenticated ? (
             <>
               {/* User details */}
               <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 12, borderBottom: "1px solid var(--border)" }}>
@@ -707,6 +727,13 @@ export function Header() {
         currentTheme={theme}
         onThemeChange={handleThemeChange}
       />
+
+      <style>{`
+        @keyframes headerPulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+      `}</style>
     </>
   );
 }

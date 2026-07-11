@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ToastContainer } from "@/shared/components/ToastContainer";
 import { TourGuide } from "@/shared/components/TourGuide";
+import { AuthInitializer } from "@/features/auth/components/AuthInitializer";
 
 export const metadata: Metadata = {
   title: "TaskCanvas | Kanban & Image Annotation",
@@ -22,6 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <AuthInitializer />
         {children}
         <ToastContainer />
         <TourGuide />
