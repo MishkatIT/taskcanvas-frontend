@@ -76,7 +76,8 @@ interface AnnotationState {
     name: string,
     axialFiles?: File[],
     sagittalFiles?: File[],
-    coronalFiles?: File[]
+    coronalFiles?: File[],
+    demoScan?: boolean
   ) => Promise<boolean>;
   deleteStudy: (id: number) => Promise<boolean>;
   updateStudyStatus: (status: RadiologyStudy["status"]) => Promise<boolean>;
@@ -300,19 +301,9 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
     }
   },
 
-  createStudy: async (name, axialFiles = [], sagittalFiles = [], coronalFiles = []) => {
+  createStudy: async (name, axialFiles = [], sagittalFiles = [], coronalFiles = [], demoScan = false) => {
     set({ isLoading: true, error: null });
-    let payload: string | FormData = name;
-    if (axialFiles.length > 0 || sagittalFiles.length > 0 || coronalFiles.length > 0) {
-      const formData = new FormData();
-      formData.append("name", name);
-      axialFiles.forEach((file) => formData.append("axial_files", file));
-      sagittalFiles.forEach((file) => formData.append("sagittal_files", file));
-      coronalFiles.forEach((file) => formData.append("coronal_files", file));
-      payload = formData;
-    }
-
-    const result = await createStudyApi(payload);
+    const result = await createStudyApi(name, demoScan, axialFiles, sagittalFiles, coronalFiles);
     if (result.ok) {
       if (typeof window !== "undefined") {
         localStorage.setItem("active_study_id", String(result.data.id));

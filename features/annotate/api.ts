@@ -63,11 +63,34 @@ export async function fetchStudyDetailApi(id: number): Promise<ApiResult<Radiolo
   return api.get<RadiologyStudy>(`/api/studies/${id}/`);
 }
 
-export async function createStudyApi(data: string | FormData): Promise<ApiResult<RadiologyStudy>> {
-  if (data instanceof FormData) {
-    return api.upload<RadiologyStudy>("/api/studies/", data);
+export async function createStudyApi(
+  name: string,
+  demoScan?: boolean,
+  axialFiles?: File[],
+  sagittalFiles?: File[],
+  coronalFiles?: File[]
+): Promise<ApiResult<RadiologyStudy>> {
+  const hasFiles =
+    (axialFiles && axialFiles.length > 0) ||
+    (sagittalFiles && sagittalFiles.length > 0) ||
+    (coronalFiles && coronalFiles.length > 0);
+
+  if (hasFiles) {
+    const formData = new FormData();
+    formData.append("name", name);
+    if (demoScan) {
+      formData.append("demo_scan", "true");
+    }
+    axialFiles?.forEach((file) => formData.append("axial_files", file));
+    sagittalFiles?.forEach((file) => formData.append("sagittal_files", file));
+    coronalFiles?.forEach((file) => formData.append("coronal_files", file));
+    return api.upload<RadiologyStudy>("/api/studies/", formData);
+  } else {
+    return api.post<RadiologyStudy>("/api/studies/", {
+      name,
+      demo_scan: !!demoScan,
+    });
   }
-  return api.post<RadiologyStudy>("/api/studies/", { name: data });
 }
 
 export async function deleteStudyApi(id: number): Promise<ApiResult<null>> {

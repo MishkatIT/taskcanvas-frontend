@@ -50,7 +50,8 @@ export function StudyDashboard({ onLoadSession }: StudyDashboardProps) {
       finalName,
       useDemoScan ? [] : axialFiles,
       useDemoScan ? [] : sagittalFiles,
-      useDemoScan ? [] : coronalFiles
+      useDemoScan ? [] : coronalFiles,
+      useDemoScan
     );
     
     if (!success) {
