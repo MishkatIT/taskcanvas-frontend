@@ -95,7 +95,9 @@ export function Header() {
   async function handleLogout() {
     await logoutApi();
     clearAuth();
-    router.replace("/");
+    if (!pathname.startsWith("/tasks") && !pathname.startsWith("/annotate")) {
+      router.replace("/");
+    }
   }
 
   const navItems = [

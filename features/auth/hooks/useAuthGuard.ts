@@ -11,18 +11,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "../store/authStore";
 
 export function useAuthGuard(): { isLoading: boolean; isAuthenticated: boolean } {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, isLoading } = useAuthStore();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/login");
+      // Don't redirect to /login if viewing tasks or annotate pages (allow onboarding/animation)
+      const isAllowedUnauthenticated = pathname.startsWith("/tasks") || pathname.startsWith("/annotate");
+      if (!isAllowedUnauthenticated) {
+        router.replace("/login");
+      }
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, pathname, router]);
 
   return { isLoading, isAuthenticated };
 }

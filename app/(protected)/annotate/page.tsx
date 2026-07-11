@@ -20,15 +20,17 @@ export default function AnnotatePage() {
 
   useEffect(() => {
     document.title = "TaskCanvas Annotate";
-    fetchStudies().then(() => {
-      if (typeof window !== "undefined") {
-        const persistedId = localStorage.getItem("active_study_id");
-        if (persistedId) {
-          selectStudy(parseInt(persistedId));
+    if (isAuthenticated) {
+      fetchStudies().then(() => {
+        if (typeof window !== "undefined") {
+          const persistedId = localStorage.getItem("active_study_id");
+          if (persistedId) {
+            selectStudy(parseInt(persistedId));
+          }
         }
-      }
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+      });
+    }
+  }, [isAuthenticated, fetchStudies, selectStudy]);
 
   if (!isAuthenticated) {
     return (

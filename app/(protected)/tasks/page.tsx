@@ -21,6 +21,7 @@ export default function TasksPage() {
 
   // Handle search query updates with debounce
   useEffect(() => {
+    if (!isAuthenticated) return;
     const delayDebounceFn = setTimeout(() => {
       const currentQuery = useTaskStore.getState().searchQuery;
       if (currentQuery !== searchVal) {
@@ -30,12 +31,14 @@ export default function TasksPage() {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchVal, fetchTasks]);
+  }, [searchVal, fetchTasks, isAuthenticated]);
 
   useEffect(() => {
     document.title = "TaskCanvas Tasks";
-    fetchTasks();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isAuthenticated) {
+      fetchTasks();
+    }
+  }, [isAuthenticated, fetchTasks]);
 
   if (!isAuthenticated) {
     return (
