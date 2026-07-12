@@ -239,14 +239,30 @@ export default function LandingPage() {
       <footer
         style={{
           borderTop: "1px solid var(--border)",
-          padding: "24px",
+          padding: "24px 24px",
           textAlign: "center",
           fontSize: 12,
           color: "var(--text-secondary)",
           backgroundColor: "var(--surface-1)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        &copy; 2026 TaskCanvas. Powered by Next.js & Django.
+        <div>
+          &copy; 2026 TaskCanvas. Powered by Next.js & Django.
+        </div>
+        <div style={{ display: "flex", gap: 16 }}>
+          <Link id="footer-link-home" href="/" style={{ color: "var(--text-secondary)", textDecoration: "none" }}>
+            Home
+          </Link>
+          <span style={{ color: "var(--border)" }}>|</span>
+          <Link id="footer-link-about" href="/about" style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}>
+            About
+          </Link>
+        </div>
       </footer>
     </div>
   );

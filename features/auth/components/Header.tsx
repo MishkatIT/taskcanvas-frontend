@@ -103,6 +103,7 @@ export function Header() {
   const navItems = [
     { href: "/tasks", label: "Tasks" },
     { href: "/annotate", label: "Annotate" },
+    { href: "/about", label: "About" },
   ];
 
   return (
